@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Search with Color/Texture</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f4;
+      color: #333;
+    }
+    header {
+      background: #6200ea;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      display: flex;
+      gap: 20px;
+      height: 550px;
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    .left-panel {
+      flex: 0 0 30%;
+      max-width: 30%;
+    }
+    .right-panel {
+      flex: 0 0 70%;
+      max-width: 70%;
+    }
+    .upload-area {
+      border: 2px dashed #6200ea;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      background: #f9f9f9;
+    }
+    .upload-area:hover {
+      background: #eef2ff;
+    }
+    .upload-area img {
+      max-width: 100%;
+      height: 200px;
+      margin-top: 10px;
+      object-fit: contain;
+    }
+    select, button {
+      margin-top: 15px;
+      padding: 10px;
+      width: 100%;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      font-size: 16px;
+    }
+    button {
+      background: #6200ea;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #5a00d4;
+    }
+    .results {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .result-item {
+      width: 200px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      background: #fafafa;
+    }
+    .result-item img {
+      width: 100%;
+      border-radius: 5px;
+    }
+    .score {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #6200ea;
+    }
+    .info {
+      margin-top: 15px;
+      font-size: 16px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="left-panel">
+      <div class="upload-area" id="upload-area">
+        <p>Drag & Drop an Image or Click to Upload</p>
+        <img id="preview-image" style="display:none;" />
+      </div>
+      <select id="search-type">
+        <option value="default">Search by: Both (Color + Texture)</option>
+        <option value="color">Search by: Color</option>
+        <option value="texture">Search by: Texture</option>
+      </select>
+      <button id="search-button">Search</button>
+    </div>
+    <div class="right-panel">
+      <div class="info" id="info"></div>
+      <div class="results" id="results"></div>
+    </div>
+  </div>
+
+  <script>
+    const uploadArea = document.getElementById("upload-area");
+    const previewImage = document.getElementById("preview-image");
+    const searchButton = document.getElementById("search-button");
+    const searchTypeSelect = document.getElementById("search-type");
+    const resultsContainer = document.getElementById("results");
+    const infoContainer = document.getElementById("info");
+
+    let selectedFile = null;
+
+
+    uploadArea.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      uploadArea.style.background = "#eef2ff";
+    });
+    uploadArea.addEventListener("dragleave", () => {
+      uploadArea.style.background = "#f9f9f9";
+    });
+    uploadArea.addEventListener("drop", (e) => {
+      e.preventDefault();
+      uploadArea.style.background = "#f9f9f9";
+      handleFile(e.dataTransfer.files[0]);
+    });
+
+
+    uploadArea.addEventListener("click", () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = (e) => handleFile(e.target.files[0]);
+      input.click();
+    });
+
+    
+    function handleFile(file) {
+      if (file && file.type.startsWith("image/")) {
+        selectedFile = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          previewImage.src = e.target.result;
+          previewImage.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      } else {
+        alert("Please upload a valid image file.");
+      }
+    }
+
+   
+    searchButton.addEventListener("click", async () => {
+      if (!selectedFile) {
+        alert("Please upload an image first.");
+        return;
+      }
+
+      const searchType = searchTypeSelect.value;
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("search_type", searchType);
+
+      resultsContainer.innerHTML = "<p>Loading results...</p>";
+      infoContainer.innerHTML = "";
+
+      try {
+        const response = await fetch("http://127.0.0.1:5000/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch results.");
+        }
+
+        const data = await response.json();
+        displayResults(data);
+      } catch (error) {
+        resultsContainer.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      }
+    });
+
+   
+    function displayResults(data) {
+      // Show text detected
+      if (data.text_detected) {
+        infoContainer.innerHTML = `<p><strong>Text Detected:</strong> ${data.text_detected}</p>`;
+      }
+
+      
+      if (data.objects_detected && data.objects_detected.length > 0) {
+        let objectText = "<p><strong>Objects Detected:</strong></p><ul>";
+        data.objects_detected.forEach((obj) => {
+          objectText += `<li>${obj.label} (Confidence: ${obj.confidence.toFixed(2)})</li>`;
+        });
+        objectText += "</ul>";
+        infoContainer.innerHTML += objectText;
+      }
+
+      
+      resultsContainer.innerHTML = "";
+      data.top_matches.forEach((match) => {
+        const div = document.createElement("div");
+        div.className = "result-item";
+        div.innerHTML = `
+          <img src="${match.image}" alt="Matched Image" />
+          <p class="score">Score: ${match.score}</p>
+        `;
+        resultsContainer.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
