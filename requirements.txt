@@ -1,0 +1,13 @@
+Flask
+Flask-Cors
+numpy
+opencv-python-headless
+pytesseract
+torch
+tensorflow
+scikit-learn
+Pillow
+colorthief
+colormath
+pandas
+gunicorn
