@@ -3,7 +3,7 @@ import numpy as np
 import pytesseract
 import cv2
 import torch
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify,render_template
 from flask_cors import CORS
 from tensorflow.keras.applications import ResNet50, VGG16
 from tensorflow.keras.preprocessing.image import img_to_array
@@ -230,5 +230,10 @@ def upload_file():
         if os.path.exists(file_path):
             os.remove(file_path)
 
+@app.route('/')
+def home():
+    return render_template('index.html')
+
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=False)
+
